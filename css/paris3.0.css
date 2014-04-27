@@ -1,0 +1,114 @@
+html, body
+{
+	padding: 0;
+	margin: 0;
+}
+
+body {
+	background-color: #f9f9f9;
+	font-family: Arial, Helvetica, Verdana;
+	font-size: 14px;
+	line-height: 22px;
+	color: rgb(68,68,68);
+	-webkit-text-size-adjust: none;
+}
+body *
+{
+	text-shadow: none;
+}
+
+#map_canvas {
+		position: absolute;
+		top: 41px;
+		bottom: 0;
+		left:0;
+		right:0;
+}
+
+
+
+
+
+
+#page nav
+{
+	display: none;
+	font-weight: bold;
+}
+
+#header,
+.header,
+#footer
+{
+	background: #f3f3f3;
+	font-size: 16px;
+	text-transform: uppercase;
+	font-weight: bolder;
+	font-variant: small-caps;
+	color: rgb(68,68,68);
+	line-height: 40px;
+	height: 40px;
+	padding: 0 50px;
+	border:1px solid #E1E1E1;
+}
+#header a,
+.header a
+{
+	background: center center no-repeat transparent;
+	background-image: url(../img/menu/menu.png);
+	display: block;
+	width: 40px;
+	height: 40px;
+	position: absolute;
+	top: 0;
+	left: 10px;
+}
+
+#header a.right,
+.header a.right
+{
+	background: url(../img/menu/compass.png) center center no-repeat transparent;
+	display: block;
+	width: 40px;
+	height: 40px;
+	position: absolute;
+	top:0;
+	right: 10px;
+	left:auto;
+}
+#content,
+.content
+{
+	padding: 20px;
+}
+#menu li a{
+	background-position:inherit;
+	text-transform: uppercase;
+	font-weight: bolder;
+	font-variant: small-caps;
+	display: block;
+}
+#menu li a img{
+	width:24px;
+	height: 24px;
+	display: inline-block;
+	margin-right: 7px;
+	vertical-align: middle;
+}
+
+a.close {
+    border-radius: 10px;
+    background: rgb(68,68,68);
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+    text-decoration: none;
+    line-height: 20px;
+    display: block;
+    width: 20px;
+    height: 20px;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}

@@ -1,0 +1,579 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="author" content="Paris Descartes (2013-2014), Paris 3.0 (L2N1, L2N2, L2O, L2P)" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		
+		<title>Paris 3.0</title>
+		
+		<link rel="stylesheet" href="http://code.jquery.com/mobile/1.3.1/jquery.mobile-1.3.1.min.css" />
+		<link type="text/css" rel="stylesheet" href="css/jquery.mmenu.all.css" />
+		<link rel="stylesheet" href="css/paris3.0.css"/>	
+		<link rel="stylesheet" href="css/realtime.css"/>
+		
+		<!--<link rel="stylesheet" media="screen" href="css/style.css" />-->
+		
+		<script type="text/javascript" src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+		<script type="text/javascript" src="http://code.jquery.com/mobile/1.3.1/jquery.mobile-1.3.1.min.js"></script>
+		<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=true&libraries=geometry,places"></script>
+		<script type="text/javascript" src="https://jqueryjs.googlecode.com/svn-history/r6125/trunk/plugins/cookie/jquery.cookie.js"></script>
+		<script type="text/javascript" src="js/jquery-ui-1.10.4.custom.min.js"></script>
+		<script type="text/javascript" src="js/jquery.mmenu.min.all.js"></script>
+		<script type="text/javascript" src="js/map.interactive.js"></script>
+		
+		<script src="js/jquery.panzoom.js"></script>
+		<script src="js/jquery.mousewheel.js"></script>
+		
+		<script type="text/javascript" src="js/scriptliste.js"></script>
+		
+		<script type="text/javascript" src="js/routing.js"></script>
+		
+		<script type="text/javascript" src="js/profile.js"></script>
+		
+		<script src="js/countdown.js"></script>
+		
+		<style>		
+			#map_routing{
+				width: 100%;
+				height: 400px;
+				float: left;
+			}
+		</style>
+		
+		<script type="text/javascript">
+			$(document).on('pagecreate', '#page', function() {
+					setMap();
+					//	Menu
+					$("#menu").mmenu({
+						classes: 'mm-light',
+						dragOpen	: true
+					});
+					
+					//	Recherche
+					$("#search").mmenu({
+						position: 'right',
+						classes: 'mm-light',
+						dragOpen: true,
+						onClick:{
+							preventDefault:true
+						},
+						searchfield	: {
+							add: true,
+							search: false,
+							placeholder: "Station.."						
+						}
+					});
+					
+		
+
+					
+
+					$(".mm-search input").on( "keyup", function() {
+						$("#search-items").empty();
+						$.ajax({
+							type : 'GET',
+							url:'http://failwithfairytales.fr/l2o/request/search/'+$(this).val().replace(/\s/g,'%20'),
+							dataType: 'json', 
+							crossDomain : true	
+						}).done(function(data){
+							$("#search-items").empty();
+							if(jQuery.isEmptyObject(data)){$("#search-items").append('<li class="mm-noresults" style="display:block">Aucun résultat.</li>');}
+							else{
+								$.each(data, function(i, element){
+									$("#search-items").append(
+										$(document.createElement("li")).append(
+											$(document.createElement("a")).attr({
+												"href": "#"
+											}).append(
+												element.name + " ("+
+												getDistanceLatLon(new google.maps.LatLng(element.lat, element.lng), window.mapObject.defaults.center)
+												+" km) - " + element.type).on("click",function(){
+												$("#search").trigger('close');
+												window.mapObject.map.panTo(
+													new google.maps.LatLng(element.lat, element.lng)
+												);
+												var to = new google.maps.LatLng(element.lat, element.lng);
+												google.maps.event.addListenerOnce(window.mapObject.map, 'idle', function(){
+												
+													viewRoute(window.mapObject.defaults.center,to);
+													setMarkers();
+													realtime({pageX:0,pageY:0,changedTouches:[{pageX:0,pageY:0}]},{id: element.id,service: element.type});
+													
+												});
+											})
+										)
+									);
+								});
+							}
+						}).fail(function(){
+							$("#search-items").empty();
+							$("#search-items").html('<li class="mm-noresults" style="display:block">No results found.</li>');
+						});
+					});
+					
+					// Filtres
+					$("#pop-filter").mmenu({
+							position	: 'bottom',
+							zposition: "front",
+							classes		: 'mm-light mm-fullscreen',
+					});
+					
+
+					$("#pop").click(function(e){
+						e.preventDefault();
+						$("menu").trigger('close');
+						$("#pop-filter").trigger('open');
+						// TODO DISABLE MENU AND RIGHT BUTTONS
+					});					
+					
+					// Plan
+					$("#pop-plan").mmenu({
+							position	: 'bottom',
+							zposition: "front",
+							classes		: 'mm-light mm-fullscreen',
+					});
+					
+					$("#plan").click(function(e){
+						e.preventDefault();
+						$("menu").trigger('close');
+						$("#pop-plan").trigger('open');						
+					});
+					
+					
+
+					// List
+					$("#pop-list").mmenu({
+							position	: 'bottom',
+							zposition: "front",
+							classes		: 'mm-light mm-fullscreen',
+					});
+					
+					$("#list").click(function(e){
+						e.preventDefault();
+						$("menu").trigger('close');
+						$("#pop-list").trigger('open');
+						loadList();
+
+					});
+										
+					
+
+					// Routing
+					$("#pop-route").mmenu({
+							position	: 'bottom',
+							zposition: "front",
+							classes		: 'mm-light mm-fullscreen',
+					});
+					
+					$("#route").click(function(e){
+						e.preventDefault();
+						$("menu").trigger('close');
+						$("#pop-route").trigger('open');
+						loadRouting();
+						routingMap();
+					});
+										
+					// Profil
+					$("#pop-profile").mmenu({
+							position	: 'bottom',
+							zposition: "front",
+							classes		: 'mm-light mm-fullscreen',
+					});
+					
+					$("#profile").click(function(e){
+						e.preventDefault();
+						$("menu").trigger('close');
+						setProfile();
+						$("#pop-profile").trigger('open');
+						
+						if ($.cookie("profile")==null)
+							$.cookie("profile", [0]);
+							
+						
+						if ($.cookie("reco")==null)
+							$.cookie("reco", ["paris"]);
+						
+						
+						
+					});
+					
+					// Recom
+					$("#pop-recom").mmenu({
+							position	: 'bottom',
+							zposition: "front",
+							classes		: 'mm-light mm-fullscreen',
+					});
+					
+					$("#recom").click(function(e){
+						e.preventDefault();
+						$("menu").trigger('close');						
+						$("#pop-recom").trigger('open');
+						
+						if ($.cookie("reco")==null)
+							$.cookie("reco", ["paris"]);
+						
+						recommend($.cookie("reco"),20);
+						
+						
+					});
+
+					
+					
+										
+					$('a.close').click(function() {
+						$(this).closest( '.mm-menu' ).trigger( 'close' );
+					}); 
+					
+					// A PROXIMITE
+					$("#arround").mmenu({
+							position	: 'bottom',
+							zposition: "front",
+							classes		: 'mm-light mm-fullscreen',
+					});
+					
+					// A PROPOS
+					$("#about").mmenu({
+							position	: 'bottom',
+							zposition: "front",
+							classes		: 'mm-light mm-fullscreen',
+					});
+					
+			});	
+		</script>
+	</head>
+	<body>
+		<div id="page" data-role="page">
+			
+			<div id="header" class="header">
+				<a href="#menu" class="menu"></a>
+				Paris 3.0
+				<a href="#search" class="right"></a>
+			</div>
+
+			<div id="content">
+				<div id="map_canvas"></div>
+
+				<div id="realtime" data-role="popup" > 
+				<a href="#" id="stop" data-rel="back" data-role="button" data-theme="a" data-icon="delete" data-iconpos="notext" class="ui-btn-right">Close</a>
+				<div id="realtime-content"></div>
+				<span id="realtime-updater">
+					Prochaine mise à jour sera lancée automatiquement dans <span id="realtime-counter"></span> seconds<br>
+					ou cliquez sur <span id="realtime-manual-update"><a href="#" style="text-decoration:none"><img src="img/refreshing.gif"/></a> pour lancer manuellement.</span>
+				</span>
+				</div>
+			
+
+				
+				<nav id="pop-filter">
+					<div>
+						<a href="#" class="close">x</a>
+						<ul data-role="controlgroup">
+							<li><input type="checkbox" name="bus" checked="checked"/><label for="bus">Bus</label></li>
+							<li><input type="checkbox" name="metro" checked="checked"/><label for="metro">Metro</label></li>
+							<li><input type="checkbox" name="rer" checked="checked"/><label for="rer">Rer</label></li>
+							<li><input type="checkbox" name="tram" checked="checked"/><label for="tram">Tram</label></li>
+							<li><input type="checkbox" name="velib" checked="checked"/<label for="velib">Velib</label></li>
+						</ul>
+					</div>
+				</nav>
+				
+				<div id="pop-plan">
+					<div>
+						<a href="#" class="close">x</a>
+						<br>
+						<section>							
+							<div class="parent">
+								<div class="panzoom">
+									<img src="img/map/large.jpg" width="100%" height="75%">
+								</div>
+							</div>
+							<script>
+							(function() {
+								var $section = $('section').first();
+								$section.find('.panzoom').panzoom({
+									$zoomIn: $section.find(".zoom-in"),
+									$zoomOut: $section.find(".zoom-out"),
+									$zoomRange: $section.find(".zoom-range"),
+									$reset: $section.find(".reset")
+								});
+							})();
+							</script>
+						</section>
+					</div>
+				</div>
+
+
+				<nav id="pop-list">
+					<div>
+						<a href="#" class="close">x</a>
+						<br>
+						<div id="content-list">
+							<ul id="liststation" data-role="listview" data-inset="true" data-divider-theme="b"></ul>
+							<div id="timing" style="width:600px">
+							</div>
+							
+						</div>
+					</div>
+				</nav>
+				
+				<nav id="pop-route">
+					<div>
+						<a href="#" class="close">x</a>
+						<br>
+						
+						<input id="routeFrom" type="text" placeholder="From...">
+						<input id="routeTo" type="text" placeholder="To...">
+
+
+						<select id="routeMode" name="routeMode">
+							<option value="TRANSIT">Transit</option>
+							<option value="DRIVING">Driving</option>
+							<option value="WALKING">Walking</option>
+							<option value="BICYCLING">Bicycling</option>    
+						</select>
+
+						<div class="textcenter">
+							<button id="routeGo">Route</button>
+							<button id="routeClear">Clear Route</button>
+						</div>
+
+						<div id="map_routing"></div>
+						<div id="directions"></div>
+
+					</div>
+				</nav>
+				
+				<nav id="pop-profile">
+					<div>
+						<a href="#" class="close">x</a>
+						<br>
+						<!--*<button class="ui-btn ui-shadow ui-corner-all ui-btn-icon-left ui-icon-user">utlisateur</button>*-->
+						<fieldset data-role="controlgroup">
+						<!--*<button class="ui-btn ui-shadow ui-corner-all ui-btn-icon-left ui-icon-bullets">
+
+							<legend>Choisissez vos centres d'interêt:</legend>
+							<input type="checkbox" name="culture" id="check1" checked="">
+							<label for="check1">Culture &amp; loisirs </label>
+							<input type="checkbox" name="resto" id="check2">
+							<label for="check2">Restaurant</label>
+							<input type="checkbox" name="sport" id="check3">
+							<label for="check3">Sport</label>
+							<input type="checkbox" name="mode" id="check4">
+							<label for="check4">Mode</label> </button>*-->
+							
+						<div data-role="collapsible" data-collapsed-icon="carat-d" data-expanded-icon="carat-u">
+								<h4>Loisirs</h4>
+								<ul data-role="listview" data-inset="false">
+								<li><input name="cbprofile_907" value="disco" id="317" type="checkbox">
+									<label for="317">Discothèques</label></li>
+									
+									<li><input name="cbprofile_910" value="parc" id="7" type="checkbox">
+									<label for="7">Principaux parcs, jardins et squares</label></li>
+									
+										<li><input name="cbprofile_902" value="cinema" id="248" type="checkbox">
+									<label for="248">Cinémathèques / Photothèques</label></li>
+
+								
+								</ul>
+							</div>
+
+
+							<div data-role="collapsible" data-collapsed-icon="carat-d" data-expanded-icon="carat-u">
+								<h4>Culture</h4>
+								<ul data-role="listview" data-inset="false">
+								
+								
+								<li><input name="cbprofile_90" value="museum" id="68" type="checkbox" >
+									<label for="68">Musées nationaux</label></li>
+									
+								<li><input name="cbprofile_55" value="school" id="39" type="checkbox">
+									<label for="39">Ecoles maternelles</label></li>
+									
+									<li><input name="cbprofile_54" value="school" id="41" type="checkbox">
+									<label for="41">Ecole élémentaires</label></li>
+									
+									<li><input name="cbprofile_53" value="school" id="301" type="checkbox">
+									<label for="301">Ecoles d'art</label></li>
+
+
+
+								</ul>
+							</div>
+
+							<div data-role="collapsible" data-collapsed-icon="carat-d" data-expanded-icon="carat-u">
+								<h4>Sport</h4>
+								<ul data-role="listview" data-inset="false">
+								
+								<li><input name="cbprofile_115" value="stadium" id="6" type="checkbox">
+									<label for="6">Stades</label></li>
+									
+									<li><input name="cbprofile_107" value="sport" id="182" type="checkbox">
+									<label for="182">Salles de sport</label></li>
+									<li><input name="cbprofile_126" value="tennis" id="175" type="checkbox">
+									<label for="175">Terrains de sport</label></li>
+								
+								<li><input name="cbprofile_125" value="tennis" id="280" type="checkbox">
+									<label for="280">Tennis</label></li>
+									
+									<li><input name="cbprofile_92" value="swimming" id="29" type="checkbox">
+									<label for="29">Piscines concédées</label></li>
+									
+							<li><input name="cbprofile_93" value="swimming"  id="27" type="checkbox">
+									<label for="27">Piscines municipales</label></li>
+									
+									<li><input name="cbprofile_66" value="sport" id="181" type="checkbox" >
+									<label for="181">Gymnases</label></li>	
+								</ul>
+							</div>
+								
+						</fieldset>
+						<button data-role="button" class="btn" onclick="javascript:getJSONCat();">Save</button>
+
+					</div>
+				</nav>
+				
+				
+				
+				<nav id="pop-recom">
+					<div>
+						<a href="#" class="close">x</a>
+						<br>
+						
+						<h3>Destinations recommendées: </h3>
+						<ul data-role="listview" id="listitem-recommend" data-divider-theme="a" data-inset="true">
+							
+						</ul>
+
+					</div>
+				</nav>
+				
+
+				
+				<nav id="arround">
+					<div>
+						<a href="#" class="close">x</a>
+						<center><b><big>A venir !</big></b></center>
+						<!--
+						<ul style="margin-left:50px;">
+							<li>
+								<li id="velib-search-trigger"><b><a href="#">V&eacute;lib</a></b></li>
+								<ul id="velib-search">
+								</ul>
+							</li>
+							<li>
+								<li id="metro-search-trigger"><b><a href="#">Metro</a></b></li>
+								<ul id="metro-search">
+								</ul>
+							</li>
+							<li>
+								<li id="rer-search-trigger"><b><a href="#">RER</a></b></li>
+								<ul id="rer-search">
+								</ul>
+							</li>
+							<li>
+								<li id="tram-search-trigger"><b><a href="#">TRAM</a></b></li>
+								<ul id="tram-search">
+								</ul>
+							</li>
+							<li>
+								<li id="bus-search-trigger"><b><a href="#">BUS</a></b></li>
+								<ul id="bus-search">
+								</ul>
+							</li>
+						</ul>
+						-->
+					</div>
+				</nav>
+				
+			</div>
+			
+			<nav id="menu" class="list">
+				<ul>
+					<!--<li>
+						<a href="#arround">
+							<img src="img/menu/pin.png">
+							Près de moi
+						</a>
+					</li>-->
+					<li id="pop">
+						<a href="#pop-filter">
+							<img src="img/menu/equilizer.png">
+							Filtres
+						</a>
+					</li>
+					
+					<li id="plan">
+						<a href="#pop-plan">
+							<img src="img/menu/plan.png">
+							Plan
+						</a>
+					</li>						
+					
+					<li id="list">
+						<a href="#pop-list">
+							<img src="img/menu/list.png">
+							List
+						</a>
+					</li>						
+
+					
+					<li id="route">
+						<a href="#pop-route">
+							<img src="img/menu/routing.png">
+							Routing
+						</a>
+					</li>	
+
+					<li id="profile">
+						<a href="#pop-profile">
+							<img src="img/menu/profile.png">
+							Profil
+						</a>
+					</li>	
+					<li id="recom">
+						<a href="#pop-recom">
+							<img src="img/menu/recom.png">
+							Recommandation
+						</a>
+					</li>	
+					
+					
+					<li id="setDefault">
+						<a href="#">
+							<img src="img/menu/mappin.png">
+							Ma position
+						</a>
+					</li>
+					<li>
+						<a href="#about">
+							<img src="img/menu/info.png">
+							A propos
+						</a>
+					</li>
+				</ul>
+			</nav>
+			
+			<nav id="search" class="list">
+				
+				<ul id="search-items"></ul>
+			</nav>
+			
+			<nav id="about">
+				<div>
+					<a href="#" class="close">x</a>
+					<u><b>Application d&eacute;veloppée dans le cadre du projet d'études au département Math-Info de l'Universit&eacute; Paris Descartes en 2014</b></u><br><br>
+					Beldjilali Dalil - Lankri Amar - Nguyen Hien - Touch Sebastien (L2N1)<br><br>
+					Azap Gokhan - Diarra Mohamed - Khairoune Rostome - Kith Severine (L2N2)<br><br>
+					Assmann Catalina - Bindernagel Felix - Dincbudak Selim - Rodrigo Boksic - Tshilombo Muzinga (L2O)<br><br>
+					Abdelhedi Malek - Bouznif Khaled - Henry Olivier - Teyeb Hazem (L2P)<br><br>
+					<b> Sous la direction de Tuong H. Nguyen</b><br><br>
+					Cr&eacute;dit Open Data &copy;<br>
+					<a href="https://developer.jcdecaux.com/#/home" target="_blank">JC DECAUX</a><br>
+					<a href="http://data.ratp.fr/" target="_blank">RATP</a>
+				</div>
+			</nav>
+		</div>
+		
+	</body>
+</html>
